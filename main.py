@@ -1,0 +1,65 @@
+# Author: yamraj
+
+import threading
+from queue import Queue
+from spider import Spider
+from domain import *
+from general import *
+
+PROJECT_NAME = input("Enter Project Name: ")
+HOMEPAGE = input("Enter Home Page: ")
+DOMAIN_NAME = get_domain_name(HOMEPAGE)
+QUEUE_FILE = PROJECT_NAME + '/queue.txt'
+CRAWLED_FILE = PROJECT_NAME + '/crawled.txt'
+NUMBER_OF_THREADS = int(input("Enter no of Threads: "))
+queue = Queue()
+fileType = input("Enter File Type to Search for: ")
+Spider(PROJECT_NAME, HOMEPAGE, DOMAIN_NAME)
+
+# Create worker threads (will die when main exits)
+def create_workers():
+    for _ in range(NUMBER_OF_THREADS):
+        t = threading.Thread(target=work)
+        t.daemon = True
+        t.start()
+
+
+# Do the next job in the queue
+def work():
+    while True:
+        url = queue.get()
+        Spider.crawl_page(threading.current_thread().name, url)
+        queue.task_done()
+
+
+# Each queued link is a new job
+def create_jobs():
+    for link in file_to_set(QUEUE_FILE):
+        queue.put(link)
+    queue.join()
+    crawl()
+
+
+# Check if there are items in the queue, if so crawl them
+def crawl():
+    queued_links = file_to_set(QUEUE_FILE)
+    if len(queued_links) > 0:
+        print(str(len(queued_links)) + ' links in the queue')
+        create_jobs()
+
+def filterResults(path,fileType):
+    #fileType = input("Enter file type: ")
+    res = open((path+"/results.txt"),'w')
+    f = open((path+"/crawled.txt"),'r')
+    print("\n\n")
+    print("+----------------+")
+    print("| Search Results |")
+    print("+----------------+\n")
+    for i in list(f):
+        if fileType in i[-5:]:
+            res.write(i)
+            print(i[:-1])
+
+create_workers()
+crawl()
+filterResults(PROJECT_NAME,fileType)
